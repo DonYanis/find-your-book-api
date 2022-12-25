@@ -14,4 +14,9 @@ router.route('/')
 router.route('/:isbn')
         .get(bookController.getBookByISBN);
 
+router.route('/reviews/:isbn')
+        .get(bookController.getBookReviews);
+
+
+
 module.exports = router;
