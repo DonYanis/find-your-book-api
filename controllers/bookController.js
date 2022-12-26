@@ -12,7 +12,7 @@ exports.getAllBooks = catchAsyncErrors(async (req,res,next)=>{
         );
         let books=[];
         result.records.forEach(e => {
-            books.push(e._fields[0]);
+            books.push(e._fields[0].properties);
         });
         res.status(200).json({
             status:'success',
@@ -23,19 +23,17 @@ exports.getAllBooks = catchAsyncErrors(async (req,res,next)=>{
         });
     }
     catch (e) {
-    console.log(e)
+    return next(new AppError('Internal server error',500))
     }
     finally {
         await session.close()
     }  
 });
 
-
 exports.getBookByISBN = catchAsyncErrors(async (req,res,next)=>{
 
     const session = await driver.session({database:"neo4j"});
     let isbn = req.params.isbn;
-    console.log(isbn)
     try {
         const result = await session.executeRead(tx =>
             tx.run(
@@ -96,13 +94,56 @@ exports.getBookByISBN = catchAsyncErrors(async (req,res,next)=>{
         });
     }
     catch (e) {
-    console.log(e)
+    return next(new AppError('Internal server error',500))
     }
     finally {
         await session.close()
     }  
 });
 
+exports.searchBooks = catchAsyncErrors(async (req,res,next)=>{
+
+    const session = await driver.session({database:"neo4j"});
+    let phrase = req.body.phrase.replace(/[|&\.;<>()#=+-:\*~'@,]/g,"").toLowerCase().split(' ');
+    
+    try {
+
+        let words = "[";
+        phrase.forEach((e,i)=>{
+            if(i===phrase.length-1){
+                words=words+`"${e}"]`;
+            }else{
+                words=words+`"${e}",`;
+            }  
+        });
+        const result = await session.executeRead(tx =>
+            tx.run(
+                `UNWIND ${words} as word
+                 MATCH(b:Book) WHERE toLower(b.title) CONTAINS word RETURN b ,COUNT(word)
+                 ORDER BY COUNT(word) DESC;`
+            )
+
+        );
+
+        let books=[];
+        result.records.forEach(e => {
+            books.push(e._fields[0].properties);
+        });
+        res.status(200).json({
+            status:'success',
+            result: books.length,
+            data : {
+                books
+            }
+        });
+    }
+    catch (e) {
+    return next(new AppError('Internal server error',500))
+    }
+    finally {
+        await session.close()
+    }  
+});
 
 exports.getBookReviews = catchAsyncErrors(async (req,res,next)=>{
 
@@ -132,7 +173,103 @@ exports.getBookReviews = catchAsyncErrors(async (req,res,next)=>{
         });
     }
     catch (e) {
-    console.log(e)
+    return next(new AppError('Internal server error',500))
+    }
+    finally {
+        await session.close()
+    }  
+});
+
+exports.addBook = catchAsyncErrors(async (req,res,next)=>{
+
+    const session = await driver.session({database:"neo4j"});
+    
+    try {
+        const result = await session.executeRead(tx =>
+            tx.run(
+                `MATCH(b:Book) WHERE b.isbn = '${req.body.isbn}' RETURN b;`
+            )
+
+        );
+        if(result.records.length>=1){
+            return next(new AppError('book already exists',403))
+        } 
+        
+        const add = await session.executeWrite(tx =>
+            tx.run(
+                `CREATE (b:Book{isbn:"${req.body.isbn}", title:"${req.body.title}", 
+                 description:"${req.body.description}", page_count:${req.body.page_count}, 
+                 ratings_average :0,ratings_count: 0, readings_count: 0})`
+            )
+
+        );
+            
+        let genres = "[";
+        req.body.book_Genres.forEach((e,i)=>{
+            if(i===req.body.book_Genres.length-1){
+                genres=genres+`"${e}"]`;
+            }else{
+                genres=genres+`"${e}",`;
+            }  
+        })
+
+        let query="" ;
+
+        req.body.book_authors.forEach((e,i)=>{
+            query=query+` MERGE (a${i}:Author{key:"${e.author.key}", name:"${e.author.name}"})
+             MERGE (a${i})-[:HAS_WRITTEN{date:"${e.has_written.date}"}]->(b)`
+        });
+
+        const addAPG = await session.executeWrite(tx =>
+            tx.run(
+                `UNWIND ${genres} as genre 
+                 MATCH (b:Book{isbn:"${req.body.isbn}"}) 
+                
+                 MERGE (g:Genre{name:genre}) 
+                 MERGE (b)-[:SPEAK_ABOUT]->(g)
+
+                 MERGE (p:Publisher{name:"${req.body.publisher.name}"})
+                 MERGE (b)<-[:HAS_PUBLISHED{date:"${req.body.publisher.date}"}]-(p)
+                 
+                 ${query}`
+            )
+        );
+        
+        res.status(200).json({
+            status:'success',
+            result: 1,
+        });
+    }
+    catch (e) {
+    return next(new AppError('Internal server error',500))
+    }
+    finally {
+        await session.close()
+    }  
+});
+
+exports.deleteBook = catchAsyncErrors(async (req,res,next)=>{
+
+    const session = await driver.session({database:"neo4j"});
+    let isbn = req.body.isbn;
+
+    try {
+        const result = await session.executeWrite(tx =>
+            tx.run(
+                `MATCH (b:Book)
+                 WHERE b.isbn = "${isbn}" 
+                 DETACH DELETE b;`
+            )
+
+        );        
+
+        res.status(200).json({
+            status:'success',
+            result: 1,
+        });
+    }
+    catch (e) {
+    return next(new AppError('Internal server error',500))
     }
     finally {
         await session.close()

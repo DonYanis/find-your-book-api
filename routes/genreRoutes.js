@@ -4,8 +4,9 @@ const genreController = require('../controllers/genreController');
 const router = express.Router();
 
 router.route('/')
-        .get(genreController.getAllGenres);
-      //.post();
+        .get(genreController.getAllGenres)
+        .post(genreController.addGenre)
+        .delete(genreController.deleteGenre);
 
 router.route('/books/:name')
         .get(genreController.getGenreBooks);

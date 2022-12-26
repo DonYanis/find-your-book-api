@@ -7,12 +7,18 @@ const router = express.Router();
 
 
 router.route('/')
-        .get(bookController.getAllBooks);
-      //.post();
-
+        .get(bookController.getAllBooks)
+        .post(bookController.addBook)
+        .delete(bookController.deleteBook);
+        
+//search by name
+router.route('/search')
+        .get(bookController.searchBooks);
 
 router.route('/:isbn')
         .get(bookController.getBookByISBN);
+
+
 
 router.route('/reviews/:isbn')
         .get(bookController.getBookReviews);

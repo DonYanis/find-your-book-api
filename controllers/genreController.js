@@ -24,7 +24,7 @@ exports.getAllGenres = catchAsyncErrors(async (req,res,next)=>{
         });
     }
     catch (e) {
-    console.log(e)
+        return next(new AppError('Internal server error',500))
     }
     finally {
         await session.close()
@@ -62,7 +62,7 @@ exports.getGenreBooks= catchAsyncErrors(async (req,res,next)=>{
         });
     }
     catch (e) {
-    console.log(e)
+        return next(new AppError('Internal server error',500))
     }
     finally {
         await session.close()
@@ -97,7 +97,7 @@ exports.getGenreReaders= catchAsyncErrors(async (req,res,next)=>{
         });
     }
     catch (e) {
-    console.log(e)
+        return next(new AppError('Internal server error',500))
     }
     finally {
         await session.close()
@@ -131,7 +131,61 @@ exports.getGenreAuthors= catchAsyncErrors(async (req,res,next)=>{
         });
     }
     catch (e) {
-    console.log(e)
+        return next(new AppError('Internal server error',500))
+    }
+    finally {
+        await session.close()
+    }  
+});
+
+exports.addGenre = catchAsyncErrors(async (req,res,next)=>{
+
+    const session = await driver.session({database:"neo4j"});
+    let name = req.body.name;
+
+    try {
+        const result = await session.executeWrite(tx =>
+            tx.run(
+                `CREATE (:Genre{name : "${name}"});`
+            )
+
+        );        
+
+        res.status(200).json({
+            status:'success',
+            result: 1,
+        });
+    }
+    catch (e) {
+    return next(new AppError('Internal server error',500))
+    }
+    finally {
+        await session.close()
+    }  
+});
+
+exports.deleteGenre = catchAsyncErrors(async (req,res,next)=>{
+
+    const session = await driver.session({database:"neo4j"});
+    let name = req.body.name;
+
+    try {
+        const result = await session.executeWrite(tx =>
+            tx.run(
+                `MATCH (g:Genre)
+                 WHERE g.name = "${name}" 
+                 DETACH DELETE g;`
+            )
+
+        );        
+
+        res.status(200).json({
+            status:'success',
+            result: 1,
+        });
+    }
+    catch (e) {
+    return next(new AppError('Internal server error',500))
     }
     finally {
         await session.close()

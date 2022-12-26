@@ -23,13 +23,12 @@ exports.getAllAuthors = catchAsyncErrors(async (req,res,next)=>{
         });
     }
     catch (e) {
-    console.log(e)
+    return next(new AppError('Internal server error',500))
     }
     finally {
         await session.close()
     }  
 });
-
 
 exports.getAuthor= catchAsyncErrors(async (req,res,next)=>{
 
@@ -70,7 +69,7 @@ exports.getAuthor= catchAsyncErrors(async (req,res,next)=>{
         });
     }
     catch (e) {
-    console.log(e)
+    return next(new AppError('Internal server error',500))
     }
     finally {
         await session.close()
@@ -104,7 +103,7 @@ exports.getAuthorBooks= catchAsyncErrors(async (req,res,next)=>{
         });
     }
     catch (e) {
-    console.log(e)
+    return next(new AppError('Internal server error',500))
     }
     finally {
         await session.close()
@@ -139,7 +138,62 @@ exports.getAuthorFans= catchAsyncErrors(async (req,res,next)=>{
         });
     }
     catch (e) {
-    console.log(e)
+    return next(new AppError('Internal server error',500))
+    }
+    finally {
+        await session.close()
+    }  
+});
+
+exports.addAuthor = catchAsyncErrors(async (req,res,next)=>{
+
+    const session = await driver.session({database:"neo4j"});
+    let name = req.body.name;
+    let key = req.body.key;
+
+    try {
+        const result = await session.executeWrite(tx =>
+            tx.run(
+                `CREATE (a:Author{name : "${name}", key : "${key}"});`
+            )
+
+        );        
+
+        res.status(200).json({
+            status:'success',
+            result: 1,
+        });
+    }
+    catch (e) {
+    return next(new AppError('Internal server error',500))
+    }
+    finally {
+        await session.close()
+    }  
+});
+
+exports.deleteAuthor = catchAsyncErrors(async (req,res,next)=>{
+
+    const session = await driver.session({database:"neo4j"});
+    let author = req.body.key;
+
+    try {
+        const result = await session.executeWrite(tx =>
+            tx.run(
+                `MATCH (a:Author)
+                 WHERE a.key = "${author}" 
+                 DETACH DELETE a;`
+            )
+
+        );        
+
+        res.status(200).json({
+            status:'success',
+            result: 1,
+        });
+    }
+    catch (e) {
+    return next(new AppError('Internal server error',500))
     }
     finally {
         await session.close()
