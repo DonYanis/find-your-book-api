@@ -400,6 +400,8 @@ exports.setreadBook = catchAsyncErrors(async (req,res,next)=>{
                      b.ratings_average = (((b.ratings_average * b.ratings_count) + ${rating} ) /(b.ratings_count+1))`
                 )
             );
+            
+                         
     
             if(rating>=3){
                 const like = await session.executeWrite(tx =>
@@ -420,6 +422,16 @@ exports.setreadBook = catchAsyncErrors(async (req,res,next)=>{
                 )
             );
         }
+
+        const createGenresRel = await session.executeWrite(tx =>
+            tx.run(
+                    `MATCH (r:Reader),(b:Book{isbn: "${isbn}"})-[SPEAK_ABOUT]->(g:Genre)
+                     WHERE ID(r) = ${id}
+                     MERGE (r)-[re:HAS_READ_GENRE]->(g)
+                     ON CREATE SET re.reading_count = 1
+                     ON MATCH SET re.reading_count = re.reading_count + 1`
+                    )
+            );
         
 
         res.status(200).json({

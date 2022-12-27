@@ -51,7 +51,8 @@ exports.getAuthor= catchAsyncErrors(async (req,res,next)=>{
             tx.run(
                 `MATCH (b:Book)<-[w:HAS_WRITTEN]-(a:Author)
                  WHERE a.key = '${key}' 
-                 RETURN b.title, b.isbn, w.date;`
+                 RETURN b.title, b.isbn, w.date,b.ratings_average
+                 ORDER BY b.ratings_average;`
             )
         );
         let author_books = [];
