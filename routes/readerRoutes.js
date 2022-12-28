@@ -8,10 +8,11 @@ const router = express.Router();
 
 router.route('/')
         .get(readerController.getAllReaders);
-      //.post();
+        
 
 router.route('/id/:id')
-        .get(readerController.getreaderById);
+        .get(readerController.getreaderById)
+        .patch(readerController.updateProfile);
 
 router.route('/email/:email')
         .get(readerController.getreaderByEmail);

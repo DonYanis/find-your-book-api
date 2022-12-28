@@ -753,3 +753,47 @@ exports.deletereaderAuthor = catchAsyncErrors(async (req,res,next)=>{
         await session.close()
     }  
 });
+
+
+exports.updateProfile = catchAsyncErrors(async (req,res,next)=>{
+
+    const session = await driver.session({database:"neo4j"});
+    let id = req.params.id;
+    try {
+        const result = await session.executeRead(tx =>
+            tx.run(
+                `MATCH(r:Reader) WHERE ID(r) = ${id} RETURN r;`
+            )
+
+        );
+        if(result.records.length===0){
+            return next(new AppError('No reader found with that id',404))
+        }
+        const {
+            first_name,
+            last_name,
+            bio
+        } = req.body;
+
+        const update = await session.executeWrite(tx =>
+            tx.run(
+                `MATCH (r:Reader)
+                 WHERE ID(r) = ${id}
+                 SET 
+                 r.first_name="${first_name}",
+                 r.last_name="${last_name}",
+                 r.bio="${bio}";`
+            )
+
+        ); 
+        res.status(200).json({
+            status:'success'
+        });
+    }
+    catch (e) {
+    return next(new AppError('Internal server error',500))
+    }
+    finally {
+        await session.close()
+    }  
+});
