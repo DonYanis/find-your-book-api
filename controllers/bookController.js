@@ -119,15 +119,25 @@ exports.searchBooks = catchAsyncErrors(async (req,res,next)=>{
         const result = await session.executeRead(tx =>
             tx.run(
                 `UNWIND ${words} as word
-                 MATCH(b:Book) WHERE toLower(b.title) CONTAINS word RETURN b ,COUNT(word)
-                 ORDER BY COUNT(word) DESC;`
+                 MATCH (a:Author)-[:HAS_WRITTEN]->(b:Book)-[:SPEAK_ABOUT]->(g:Genre) 
+                 WHERE 
+                    toLower(b.title) CONTAINS word OR 
+                    toLower(g.name) CONTAINS word  OR 
+                    toLower(a.name) CONTAINS word 
+                 WITH b AS book, g AS genre,a AS author, COUNT(word) AS nb
+                 WITH collect({book:book, genre:genre,author:author, nb:nb}) AS a
+                 UNWIND a AS  c RETURN DISTINCT c.book.isbn,c.book.title,c.book.ratings_average , c.nb ORDER BY c.nb DESC;`
             )
 
         );
 
         let books=[];
+        let isbns=[]
         result.records.forEach(e => {
-            books.push(e._fields[0].properties);
+            if(!isbns.includes(e._fields[0])){
+                books.push([e._fields[0],e._fields[1],e._fields[2].low]);
+                isbns.push(e._fields[0]);
+            }
         });
         res.status(200).json({
             status:'success',
